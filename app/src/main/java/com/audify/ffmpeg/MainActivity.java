@@ -170,13 +170,13 @@ public class MainActivity extends AppCompatActivity {
             So, it is recommended to use the below method to create a audio file in storage.
              */
             ContentValues valuesvideos = new ContentValues();
-            valuesvideos.put(MediaStore.Video.Media.RELATIVE_PATH, "Audio/" + "Folder");
+            valuesvideos.put(MediaStore.Video.Media.RELATIVE_PATH, "Music/" + "Folder");
             valuesvideos.put(MediaStore.Video.Media.TITLE, filePrefix+System.currentTimeMillis());
             valuesvideos.put(MediaStore.Video.Media.DISPLAY_NAME, filePrefix+System.currentTimeMillis()+fileExtn);
             valuesvideos.put(MediaStore.Video.Media.MIME_TYPE, "audio/mp3");
             valuesvideos.put(MediaStore.Video.Media.DATE_ADDED, System.currentTimeMillis() / 1000);
             valuesvideos.put(MediaStore.Video.Media.DATE_TAKEN, System.currentTimeMillis());
-            Uri uri = getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, valuesvideos);
+            Uri uri = getContentResolver().insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, valuesvideos);
 
             //get the path of the video file created in the storage.
             File file=FileUtils.getFileFromUri(this,uri);
@@ -217,14 +217,14 @@ public class MainActivity extends AppCompatActivity {
                 if (returnCode == RETURN_CODE_SUCCESS) {
                     //after successful execution of ffmpeg command,
                     //again set up the video Uri in VideoView
-                    videoView.setVideoURI(Uri.parse(filePath));
+                    //videoView.setVideoURI(Uri.parse(filePath));
                     //change the video_url to filePath, so that we could do more manipulations in the
                     //resultant video. By this we can apply as many effects as we want in a single video.
                     //Actually there are multiple videos being formed in storage but while using app it
                     //feels like we are doing manipulations in only one video
-                    video_url = filePath;
+                    //video_url = filePath;
                     //play the result video in VideoView
-                    videoView.start();
+                    //videoView.start();
                     //remove the progress dialog
                     progressDialog.dismiss();
                     audio_url.setText("Audio written to: " + filePath);

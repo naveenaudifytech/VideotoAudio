@@ -28,15 +28,16 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
-import com.arthenica.mobileffmpeg.Config;
-import com.arthenica.mobileffmpeg.ExecuteCallback;
-import com.arthenica.mobileffmpeg.FFmpeg;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
 
-import static com.arthenica.mobileffmpeg.Config.RETURN_CODE_SUCCESS;
-import static com.arthenica.mobileffmpeg.Config.RETURN_CODE_CANCEL;
+import com.arthenica.ffmpegkit.ExecuteCallback;
+import com.arthenica.ffmpegkit.FFmpegKit;
+import com.arthenica.ffmpegkit.FFmpegSession;
+import com.arthenica.ffmpegkit.ReturnCode;
+import com.arthenica.ffmpegkit.Session;
+import com.arthenica.ffmpegkit.SessionState;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -50,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String app_folder=root+"/Audify/";
     private static final MediaPlayer mp = new MediaPlayer();
 
+    private static final String TAG = MainActivity.class.getName();
 
     //Permision code that will be checked in the method onRequestPermissionsResult
     private int STORAGE_PERMISSION_CODE = 23;
@@ -72,14 +74,15 @@ public class MainActivity extends AppCompatActivity {
 
         if (ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.READ_EXTERNAL_STORAGE) ||
                 ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.WRITE_EXTERNAL_STORAGE) ||
-                ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.INTERNET)){
+                ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.INTERNET) ||
+                ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.MANAGE_EXTERNAL_STORAGE)){
             //If the user has denied the permission previously your code will come to this block
             //Here you can explain why you need this permission
             //Explain here why you need this permission
         }
 
         //And finally ask for the permission
-        ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.INTERNET},STORAGE_PERMISSION_CODE);
+        ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.INTERNET,Manifest.permission.MANAGE_EXTERNAL_STORAGE},STORAGE_PERMISSION_CODE);
     }
 
     //This method will be called when the user will tap on allow or deny
@@ -134,11 +137,12 @@ public class MainActivity extends AppCompatActivity {
         audiomp3.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+               // video_url = "/storage/emulated/0/Movies/1280.mp4";
                 if (video_url != null) {
                     try {
                         audiomp3();
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        //e.printStackTrace();
                         Toast.makeText(MainActivity.this, e.toString(), Toast.LENGTH_SHORT).show();
                     }
                 } else
@@ -157,6 +161,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void audiomp3() throws Exception {
 
+        FFmpegKit.cancel();
         //create a progress dialog and show it until this method executes.
         progressDialog.show();
 
@@ -170,12 +175,12 @@ public class MainActivity extends AppCompatActivity {
             So, it is recommended to use the below method to create a audio file in storage.
              */
             ContentValues valuesvideos = new ContentValues();
-            valuesvideos.put(MediaStore.Video.Media.RELATIVE_PATH, "Music/" + "Folder");
-            valuesvideos.put(MediaStore.Video.Media.TITLE, filePrefix+System.currentTimeMillis());
-            valuesvideos.put(MediaStore.Video.Media.DISPLAY_NAME, filePrefix+System.currentTimeMillis()+fileExtn);
-            valuesvideos.put(MediaStore.Video.Media.MIME_TYPE, "audio/mp3");
-            valuesvideos.put(MediaStore.Video.Media.DATE_ADDED, System.currentTimeMillis() / 1000);
-            valuesvideos.put(MediaStore.Video.Media.DATE_TAKEN, System.currentTimeMillis());
+            valuesvideos.put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/" + "Folder");
+            valuesvideos.put(MediaStore.Audio.Media.TITLE, filePrefix+System.currentTimeMillis());
+            valuesvideos.put(MediaStore.Audio.Media.DISPLAY_NAME, filePrefix+System.currentTimeMillis()+fileExtn);
+            valuesvideos.put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp3");
+            valuesvideos.put(MediaStore.Audio.Media.DATE_ADDED, System.currentTimeMillis() / 1000);
+            valuesvideos.put(MediaStore.Audio.Media.DATE_TAKEN, System.currentTimeMillis());
             Uri uri = getContentResolver().insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, valuesvideos);
 
             //get the path of the video file created in the storage.
@@ -201,7 +206,7 @@ public class MainActivity extends AppCompatActivity {
             mp3File.getParentFile().mkdirs();
         //the "exe" string contains the command to process video.The details of command are discussed later in this post.
         // "video_url" is the url of video which you want to edit. You can get this url from intent by selecting any video from gallery.
-        exe = "-i " + video_url + " -q:a 0 -map a " +filePath;
+        exe = "-i " + video_url + " -q:a 0 -map a -y " +filePath;
         //exe="-y -i " +video_url+" -filter_complex [0:v]trim=0:"+startMs/1000+",setpts=PTS-STARTPTS[v1];[0:v]trim="+startMs/1000+":"+endMs/1000+",setpts=0.5*(PTS-STARTPTS)[v2];[0:v]trim="+(endMs/1000)+",setpts=PTS-STARTPTS[v3];[0:a]atrim=0:"+(startMs/1000)+",asetpts=PTS-STARTPTS[a1];[0:a]atrim="+(startMs/1000)+":"+(endMs/1000)+",asetpts=PTS-STARTPTS,atempo=2[a2];[0:a]atrim="+(endMs/1000)+",asetpts=PTS-STARTPTS[a3];[v1][a1][v2][a2][v3][a3]concat=n=3:v=1:a=1 "+"-b:v 2097k -vcodec mpeg4 -crf 0 -preset superfast "+filePath;
 
         /*
@@ -210,28 +215,19 @@ public class MainActivity extends AppCompatActivity {
             and as a result only one is a allowed to work at a time.
             By using we Async task we create a different thread which resolves the issue.
          */
-        long executionId = FFmpeg.executeAsync(exe, new ExecuteCallback() {
+        FFmpegSession session = FFmpegKit.executeAsync(exe, new ExecuteCallback() {
 
             @Override
-            public void apply(final long executionId, final int returnCode) {
-                if (returnCode == RETURN_CODE_SUCCESS) {
-                    //after successful execution of ffmpeg command,
-                    //again set up the video Uri in VideoView
-                    //videoView.setVideoURI(Uri.parse(filePath));
-                    //change the video_url to filePath, so that we could do more manipulations in the
-                    //resultant video. By this we can apply as many effects as we want in a single video.
-                    //Actually there are multiple videos being formed in storage but while using app it
-                    //feels like we are doing manipulations in only one video
-                    //video_url = filePath;
-                    //play the result video in VideoView
-                    //videoView.start();
-                    //remove the progress dialog
+            public void apply(Session session) {
+                SessionState state = session.getState();
+                ReturnCode returnCode = session.getReturnCode();
+                if (ReturnCode.isSuccess(session.getReturnCode())) {
                     progressDialog.dismiss();
                     audio_url.setText("Audio written to: " + filePath);
-                } else if (returnCode == RETURN_CODE_CANCEL) {
-                    Log.i(Config.TAG, "Async command execution cancelled by user.");
+                } else if (ReturnCode.isCancel(session.getReturnCode())) {
+                    Log.i(TAG, "Async command execution cancelled by user.");
                 } else {
-                    Log.i(Config.TAG, String.format("Async command execution failed with returnCode=%d.", returnCode));
+                    Log.i(TAG, String.format("Async command execution failed with returnCode=%d.", returnCode));
                 }
             }
         });
